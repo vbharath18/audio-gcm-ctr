@@ -218,6 +218,30 @@ function App() {
       addLog("Storage and state cleared.");
   }
 
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    addLog(`File selected: ${file.name} (${file.size} bytes)`);
+
+    const chunkSize = 128 * 1024; // 128KB
+    const chunks = [];
+    let offset = 0;
+
+    while (offset < file.size) {
+      const chunk = file.slice(offset, offset + chunkSize);
+      chunks.push(chunk);
+      offset += chunkSize;
+    }
+
+    setRecordedChunks(chunks);
+    setDuration(0); // We don't know the duration easily without decoding
+    setMetrics(null);
+    setDecryptionMetrics(null);
+    setComparisonMetrics(null);
+    addLog(`File loaded and split into ${chunks.length} chunks.`);
+  };
+
   return (
     <div className="container">
       <h1>Audio Crypto Recorder</h1>
@@ -252,6 +276,18 @@ function App() {
             <button onClick={decryptAndPlay} disabled={isRecording}>
                 Decrypt & Play
             </button>
+        </div>
+        <div className="action-row">
+            <label htmlFor="audio-upload" className="file-upload-label" style={{ marginRight: '10px' }}>
+              Upload Audio:
+            </label>
+            <input
+              type="file"
+              id="audio-upload"
+              accept="audio/*"
+              onChange={handleFileUpload}
+              disabled={isRecording}
+            />
         </div>
         <div className="action-row">
             <button onClick={runComparison} disabled={isRecording || recordedChunks.length === 0}>

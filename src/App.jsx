@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import './App.css';
 import { ALGORITHMS, generateKey, encryptChunk, decryptChunk } from './services/crypto';
 import { storeChunk, getChunks, clearStorage } from './services/storage';
+import { validateAudioFile } from './utils/validation';
 
 function App() {
   const [isRecording, setIsRecording] = useState(false);
@@ -221,6 +222,16 @@ function App() {
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (!file) return;
+
+    // Security: Validate file input
+    const validation = validateAudioFile(file);
+    if (!validation.isValid) {
+      alert(validation.error);
+      addLog(`Error: ${validation.error}`);
+      // Clear the input so user can try again
+      event.target.value = '';
+      return;
+    }
 
     addLog(`File selected: ${file.name} (${file.size} bytes)`);
 

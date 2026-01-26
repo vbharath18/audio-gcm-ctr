@@ -10,7 +10,7 @@ A React-based web application that demonstrates secure audio recording, encrypti
   - **AES-GCM**: Authenticated encryption mode (default).
   - **AES-CTR**: Counter mode encryption.
   - Uses 256-bit keys generated via the Web Crypto API.
-- **Secure Storage**: Encrypted audio chunks are stored in the browser's IndexedDB. Keys are temporarily managed in SessionStorage for the active session.
+- **Secure Storage**: Encrypted audio chunks are stored in the browser's IndexedDB. Keys are temporarily managed in ephemeral application state for the active session.
 - **Performance Metrics**:
   - Measure encryption and decryption times.
   - Side-by-side comparison of AES-GCM vs. AES-CTR performance.
@@ -46,7 +46,7 @@ The application is built with **React** and **Vite**, focusing on a component-ba
     - Blobs are converted to `ArrayBuffer`.
     - `crypto.js` encrypts each buffer individually.
     - Performance metrics (time taken) are captured.
-3.  **Storage**: Encrypted chunks and their IVs are saved to IndexedDB. The encryption key is temporarily saved to `sessionStorage` to allow immediate playback in the demo.
+3.  **Storage**: Encrypted chunks and their IVs are saved to IndexedDB. The encryption key is temporarily managed in ephemeral application state (memory) to allow immediate playback in the demo.
 4.  **Decryption & Playback**:
     - Chunks are retrieved from IndexedDB.
     - `crypto.js` decrypts them using the session key.

@@ -13,6 +13,11 @@ function App() {
   const [decryptionMetrics, setDecryptionMetrics] = useState(null);
   const [comparisonMetrics, setComparisonMetrics] = useState(null);
 
+  // Secure ephemeral storage for keys and session metadata
+  const [storedKey, setStoredKey] = useState(null);
+  const [storedSessionId, setStoredSessionId] = useState(null);
+  const [storedAlgorithm, setStoredAlgorithm] = useState(null);
+
   const mediaRecorderRef = useRef(null);
   const startTimeRef = useRef(null);
   const timerIntervalRef = useRef(null);
@@ -112,14 +117,12 @@ function App() {
         await storeChunk(sessionId, i, chunk.data, chunk.iv, encryptionMode);
     }
 
-    // Store key for decryption
-    // Note: In a real app we wouldn't store key with data so casually, but for prototype:
+    // Store key for decryption in ephemeral state (memory only)
     // We are grabbing the key from the first chunk as they are all encrypted with same key in this loop
     const key = encryptedData[0].key;
-    const jwkKey = await window.crypto.subtle.exportKey('jwk', key);
-    sessionStorage.setItem('currentKey', JSON.stringify(jwkKey));
-    sessionStorage.setItem('sessionId', sessionId);
-    sessionStorage.setItem('algorithm', encryptionMode);
+    setStoredKey(key);
+    setStoredSessionId(sessionId);
+    setStoredAlgorithm(encryptionMode);
 
     setMetrics({
         encryptionTime: totalTime,
@@ -131,27 +134,14 @@ function App() {
   };
 
   const decryptAndPlay = async () => {
-      const sessionId = sessionStorage.getItem('sessionId');
-      const keyStr = sessionStorage.getItem('currentKey');
-      const algorithm = sessionStorage.getItem('algorithm');
-
-      if (!sessionId || !keyStr || !algorithm) {
+      if (!storedSessionId || !storedKey || !storedAlgorithm) {
           addLog("No stored session found.");
           return;
       }
 
-      addLog(`Retrieving and decrypting (${algorithm})...`);
+      addLog(`Retrieving and decrypting (${storedAlgorithm})...`);
 
-      const keyData = JSON.parse(keyStr);
-      const key = await window.crypto.subtle.importKey(
-          'jwk',
-          keyData,
-          { name: algorithm, length: 256 },
-          true,
-          ['encrypt', 'decrypt']
-      );
-
-      const storedChunks = await getChunks(sessionId);
+      const storedChunks = await getChunks(storedSessionId);
       if (storedChunks.length === 0) {
           addLog("No chunks found in storage.");
           return;
@@ -162,7 +152,7 @@ function App() {
 
       for (const chunk of storedChunks) {
           const t0 = performance.now();
-          const decrypted = await decryptChunk(chunk.data, chunk.iv, key, algorithm);
+          const decrypted = await decryptChunk(chunk.data, chunk.iv, storedKey, storedAlgorithm);
           const t1 = performance.now();
           totalDecryptTime += (t1 - t0);
           decryptedBuffers.push(decrypted);
@@ -210,7 +200,9 @@ function App() {
 
   const clearData = async () => {
       await clearStorage();
-      sessionStorage.clear();
+      setStoredKey(null);
+      setStoredSessionId(null);
+      setStoredAlgorithm(null);
       setMetrics(null);
       setDecryptionMetrics(null);
       setComparisonMetrics(null);

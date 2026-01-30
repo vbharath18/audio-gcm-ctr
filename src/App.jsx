@@ -12,6 +12,7 @@ function App() {
   const [metrics, setMetrics] = useState(null);
   const [decryptionMetrics, setDecryptionMetrics] = useState(null);
   const [comparisonMetrics, setComparisonMetrics] = useState(null);
+  const [sessionData, setSessionData] = useState(null);
 
   const mediaRecorderRef = useRef(null);
   const startTimeRef = useRef(null);
@@ -116,10 +117,13 @@ function App() {
     // Note: In a real app we wouldn't store key with data so casually, but for prototype:
     // We are grabbing the key from the first chunk as they are all encrypted with same key in this loop
     const key = encryptedData[0].key;
-    const jwkKey = await window.crypto.subtle.exportKey('jwk', key);
-    sessionStorage.setItem('currentKey', JSON.stringify(jwkKey));
-    sessionStorage.setItem('sessionId', sessionId);
-    sessionStorage.setItem('algorithm', encryptionMode);
+
+    // SECURE: Use React state instead of sessionStorage for key material
+    setSessionData({
+      key,
+      sessionId,
+      algorithm: encryptionMode
+    });
 
     setMetrics({
         encryptionTime: totalTime,
@@ -131,26 +135,16 @@ function App() {
   };
 
   const decryptAndPlay = async () => {
-      const sessionId = sessionStorage.getItem('sessionId');
-      const keyStr = sessionStorage.getItem('currentKey');
-      const algorithm = sessionStorage.getItem('algorithm');
-
-      if (!sessionId || !keyStr || !algorithm) {
+      if (!sessionData) {
           addLog("No stored session found.");
           return;
       }
 
+      const { sessionId, key, algorithm } = sessionData;
+
       addLog(`Retrieving and decrypting (${algorithm})...`);
 
-      const keyData = JSON.parse(keyStr);
-      const key = await window.crypto.subtle.importKey(
-          'jwk',
-          keyData,
-          { name: algorithm, length: 256 },
-          true,
-          ['encrypt', 'decrypt']
-      );
-
+      // Key is already a CryptoKey object in state, no need to import
       const storedChunks = await getChunks(sessionId);
       if (storedChunks.length === 0) {
           addLog("No chunks found in storage.");
@@ -210,7 +204,7 @@ function App() {
 
   const clearData = async () => {
       await clearStorage();
-      sessionStorage.clear();
+      setSessionData(null);
       setMetrics(null);
       setDecryptionMetrics(null);
       setComparisonMetrics(null);

@@ -9,7 +9,7 @@ export async function generateKey(algorithm) {
       name: algorithm,
       length: 256,
     },
-    true,
+    false,
     ['encrypt', 'decrypt']
   );
 }

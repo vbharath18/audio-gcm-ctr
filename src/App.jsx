@@ -12,6 +12,7 @@ function App() {
   const [metrics, setMetrics] = useState(null);
   const [decryptionMetrics, setDecryptionMetrics] = useState(null);
   const [comparisonMetrics, setComparisonMetrics] = useState(null);
+  const [sessionData, setSessionData] = useState(null);
 
   const mediaRecorderRef = useRef(null);
   const startTimeRef = useRef(null);
@@ -112,14 +113,14 @@ function App() {
         await storeChunk(sessionId, i, chunk.data, chunk.iv, encryptionMode);
     }
 
-    // Store key for decryption
-    // Note: In a real app we wouldn't store key with data so casually, but for prototype:
-    // We are grabbing the key from the first chunk as they are all encrypted with same key in this loop
+    // Store key for decryption in memory (React state)
+    // Keys are non-extractable and ephemeral to the session
     const key = encryptedData[0].key;
-    const jwkKey = await window.crypto.subtle.exportKey('jwk', key);
-    sessionStorage.setItem('currentKey', JSON.stringify(jwkKey));
-    sessionStorage.setItem('sessionId', sessionId);
-    sessionStorage.setItem('algorithm', encryptionMode);
+    setSessionData({
+        key,
+        sessionId,
+        algorithm: encryptionMode
+    });
 
     setMetrics({
         encryptionTime: totalTime,
@@ -131,25 +132,14 @@ function App() {
   };
 
   const decryptAndPlay = async () => {
-      const sessionId = sessionStorage.getItem('sessionId');
-      const keyStr = sessionStorage.getItem('currentKey');
-      const algorithm = sessionStorage.getItem('algorithm');
-
-      if (!sessionId || !keyStr || !algorithm) {
-          addLog("No stored session found.");
+      if (!sessionData) {
+          addLog("No active session in memory.");
           return;
       }
 
-      addLog(`Retrieving and decrypting (${algorithm})...`);
+      const { key, sessionId, algorithm } = sessionData;
 
-      const keyData = JSON.parse(keyStr);
-      const key = await window.crypto.subtle.importKey(
-          'jwk',
-          keyData,
-          { name: algorithm, length: 256 },
-          true,
-          ['encrypt', 'decrypt']
-      );
+      addLog(`Retrieving and decrypting (${algorithm})...`);
 
       const storedChunks = await getChunks(sessionId);
       if (storedChunks.length === 0) {
@@ -210,7 +200,7 @@ function App() {
 
   const clearData = async () => {
       await clearStorage();
-      sessionStorage.clear();
+      setSessionData(null);
       setMetrics(null);
       setDecryptionMetrics(null);
       setComparisonMetrics(null);

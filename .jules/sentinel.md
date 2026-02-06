@@ -1,0 +1,4 @@
+## 2024-05-22 - Insecure Session Storage of Cryptographic Keys
+**Vulnerability:** Cryptographic keys were being exported (via `exportKey`) and stored as JSON strings in `sessionStorage`. This made the keys accessible to any script running on the page (XSS risk) and persisted them longer than necessary. Additionally, keys were generated with `extractable: true`, allowing this export.
+**Learning:** The need for "convenience" features in prototypes (like surviving a page reload) often drives developers to use insecure storage mechanisms like `sessionStorage` for sensitive data, bypassing memory-only security guarantees.
+**Prevention:** Always store sensitive cryptographic keys in memory (e.g., React state) only. Generate keys with `extractable: false` by default to prevent accidental or malicious export. If persistence is needed, use encrypted storage (e.g., wrapping the key with a user-derived key) rather than storing plain keys.
